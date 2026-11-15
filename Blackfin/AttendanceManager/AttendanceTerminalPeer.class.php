@@ -161,7 +161,7 @@ OPERLOGStamp={$lastOperlogEntryTimestamp}";
         if($terminal){
             $infoElements = explode(',', $info);
             $firmware = str_replace('Ver%', '', $infoElements[0]);
-            $ipAddress = $infoElements[4];
+            $ipAddress = isset($infoElements[4]) ? $infoElements[4] : '';
             $fieldValues = array();
             if(filter_var($ipAddress, FILTER_VALIDATE_IP) !== FALSE && $ipAddress != $terminal['ipv4_address']){
                 $fieldValues['ipv4_address'] = $ipAddress;

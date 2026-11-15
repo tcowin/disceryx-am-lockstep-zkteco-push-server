@@ -1,10 +1,6 @@
 <?php
 
-    error_reporting(E_ALL);
-    ini_set("display_errors", 1);
-
-    $loader = require __DIR__ . '/../vendor/autoload.php';
-    $loader->add('Blackfin\\AttendanceManager\\', __DIR__);
+    $loader = require __DIR__ . '/bootstrap.php';   // error handling (nothing printed to the clock), autoloader
 
     /**
      *    Handle GET (commands) requests for ZK Tech Push API v 2.2(?) for Attendance Terminals - US-10

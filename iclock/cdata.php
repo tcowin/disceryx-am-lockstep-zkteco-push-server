@@ -1,9 +1,5 @@
 <?php
-    error_reporting(E_ALL);
-    ini_set("display_errors", 1);
-
-    $loader = require __DIR__ . '/../vendor/autoload.php';
-    $loader->add('Blackfin\\AttendanceManager\\', __DIR__);
+    $loader = require __DIR__ . '/bootstrap.php';   // error handling (nothing printed to the clock), autoloader
 
     use Blackfin\AttendanceManager\AttendanceEventRecorder;
     use Blackfin\AttendanceManager\AttendanceTerminalPeer;
@@ -87,7 +83,7 @@
         isset($_GET['Stamp']) &&
         $_GET['table'] == 'OPERLOG'){
 
-        $inputLines = file("php://input");//presumably should read them from stream regardless, as they'll remain there until read?
+        $inputLines = file("php://input") ?: array();//presumably should read them from stream regardless, as they'll remain there until read?
         if($debug){
 		if(is_array($inputLines)){
 			$il = json_encode($inputLines);
@@ -118,7 +114,7 @@
         $_GET['table'] == 'ATTLOG' &&
         isset($_GET['Stamp'])){
 
-        $input = file("php://input");
+        $input = file("php://input") ?: array();
         if($debug){
             Logger::logMessage($_SERVER['SCRIPT_NAME'], "Terminal request to log ATTLOG entries from {$_GET['SN']}: " . implode("; ", $input), LOG_DEBUG);
         }
@@ -131,12 +127,17 @@
             $matched = preg_match("/(\d{1,10})\s+(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\s+(\d{1,3})\s+(\d{1,4}).*/", $line, $matches);
 
             if($matched && count($matches) >= 4){
-                $recorder = new AttendanceEventRecorder($matches[1],              //student id
-                                                        $matches[2],              //datetime Y-m-d H:i:s
-                                                        $matches[3],              //event type
-                                                        $matches[4],              //verify mode
-                                                        $_GET['SN'],              //terminal serial no
-                                                        $_SERVER['REMOTE_ADDR']); //client ip
+                // one punch that fails must not lose the rest of the upload (the clock has its OK already)
+                try {
+                    $recorder = new AttendanceEventRecorder($matches[1],              //student id
+                                                            $matches[2],              //datetime Y-m-d H:i:s
+                                                            $matches[3],              //event type
+                                                            $matches[4],              //verify mode
+                                                            $_GET['SN'],              //terminal serial no
+                                                            $_SERVER['REMOTE_ADDR']); //client ip
+                } catch (\Throwable $e) {
+                    Logger::logMessage($_SERVER['SCRIPT_NAME'], "ERROR: punch not recorded, from {$_GET['SN']}: " . trim($line) . ": " . $e->getMessage(), LOG_ERR);
+                }
             }
             else{
                 Logger::logMessage($_SERVER['SCRIPT_NAME'], "Error processing ATTLOG entry from {$_GET['SN']} $line", LOG_DEBUG);
@@ -164,10 +165,9 @@ USER PIN=1002	Name=Other User	Pri=0	Passwd=	Card=	Grp=0	TZ=0000000000000000	Veri
         $_GET['table'] == 'USERINFO' &&
         isset($_GET['Stamp'])){
 
-        $input = file("php://input");
-
+        $input = file("php://input") ?: array();
         if($debug){
-            Logger::logMessage($_SERVER['SCRIPT_NAME'], " USERINFO $postvars 2nd line: $input", LOG_DEBUG);
+            Logger::logMessage($_SERVER['SCRIPT_NAME'], " USERINFO from {$_GET['SN']}: " . implode("; ", $input), LOG_DEBUG);
         }
 
         //have to issue OK right away or else terminal will not think its a successful transmission

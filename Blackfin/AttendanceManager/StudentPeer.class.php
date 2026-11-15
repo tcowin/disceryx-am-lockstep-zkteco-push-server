@@ -71,7 +71,7 @@
             return Database::insertRecord('student', $fields);
         }
 
-        public static function verifyStudentRecord($schoolStudentId, $studentName, $password = '', $terminalSerialNumber)
+        public static function verifyStudentRecord($schoolStudentId, $studentName, $password, $terminalSerialNumber)
         {
             $schoolId = AttendanceTerminalPeer::getSchoolId($terminalSerialNumber);
 

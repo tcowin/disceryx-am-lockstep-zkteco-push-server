@@ -19,7 +19,14 @@ class Database {
 
         $mysqli = MySQLAccessor::getInstance();
 //echo "q: $query<br>";
-        $result = $mysqli->query($query);
+        // A failed query returns false, as on PHP 7.4 (MySQLAccessor turns mysqli's exceptions off); the catch is for
+        // a lost connection or anything else that still throws, so one bad query never ends the request.
+        try {
+            $result = $mysqli->query($query);
+        } catch (\Throwable $e) {
+            Logger::logMessage(__METHOD__, " MySQL ERROR " . $e->getMessage() . " Whole query: $query", LOG_ERR);
+            return false;
+        }
 
 //        Logger::logMessage(__METHOD__, " MySQL $query", LOG_DEBUG);
 
@@ -122,7 +129,11 @@ class Database {
     }
 
     public static function get_field_names($tablename){
+        $col_names = array();
         $result = self::processQuery("show columns from `$tablename`");
+        if(!$result){
+            return $col_names;
+        }
         while ($row = $result->fetch_array()){
             $col_names[] = $row[0];
         }
@@ -133,6 +144,9 @@ class Database {
     public static function get_highest_current_precedence($tablename){
         $query = "select max(precedence) from `$tablename`";
         $result = self::processQuery($query);
+        if(!$result){
+            return 0;
+        }
         $row = $result->fetch_array();
         if(empty($row['max(precedence)'])){
             $returnValue = 0;
@@ -144,9 +158,13 @@ class Database {
         return $returnValue;
     }
 
+    /**
+     * @return int|false the new row's id, or false if the insert failed (it was -1, which callers took for success:
+     *                   a lost punch moved the clock's high-water mark and fired a clock event for id -1)
+     */
     public static function insertRecord($tablename, $values, $addQuotes = true)
     {
-        $returnValue = -1;
+        $returnValue = false;
         $column_names = "(";
         $column_values = "(";
         foreach($values as $key => $value){
@@ -200,7 +218,17 @@ class Database {
         $set_clause = '';
         foreach($fields as $key => $value){
             //$set_clause .= ($set_clause != '' ? ', ' : 'SET ') . "`$key` = " . (($string && $value != "NOW()") ? StringUtil::addQuotes(mysql_real_escape_string($value)) : mysql_real_escape_string($value));
-            $set_clause .= ($set_clause != '' ? ', ' : 'SET ') . "`$key` = " . (($string && $value != "NOW()") ? StringUtil::addQuotes(addslashes($value)) : addslashes($value));
+            // escaped once (addQuotes escapes; this used to escape twice, storing O'Brien as O\'Brien); null is NULL
+            if($value === null){
+                $sqlValue = 'NULL';
+            }
+            elseif($string && $value != "NOW()"){
+                $sqlValue = StringUtil::addQuotes($value);
+            }
+            else{
+                $sqlValue = addslashes((string) $value);
+            }
+            $set_clause .= ($set_clause != '' ? ', ' : 'SET ') . "`$key` = " . $sqlValue;
         }
         if($set_clause == ''){
             return;
@@ -247,10 +275,15 @@ class Database {
     public static function getTableRowId($tablename, $fields, $insert_row = true, $addQuotes = true){
         $where_clause = '';
         foreach($fields as $key => $value){
-            $where_clause .= ($where_clause != '' ? ' AND ' : '') . "`$key` = " . ($addQuotes ? StringUtil::addQuotes($value) : $value);
+            // null is IS NULL: "= ''" never matches and MySQL 8 refuses it for date columns
+            $condition = $value === null ? 'IS NULL' : '= ' . ($addQuotes ? StringUtil::addQuotes($value) : $value);
+            $where_clause .= ($where_clause != '' ? ' AND ' : '') . "`$key` $condition";
         }
         $query = "select id from `$tablename` where " . $where_clause;
         $result = self::processQuery($query);
+        if(!$result){
+            return null;
+        }
         $row = $result->fetch_array();
         $result->close();
         if(empty($row['id'])){
@@ -273,7 +306,8 @@ class Database {
         self::processQuery($query, $ignore_error);
     }
 
-    public static function retrieve_field_value($tablename, $fieldname_select = null, $value = null, $fieldname_to_retrieve, $exact_match = true, $addQuotes = true)
+    // (the first three are required: defaults before a required parameter meant nothing, and PHP 8 says so)
+    public static function retrieve_field_value($tablename, $fieldname_select, $value, $fieldname_to_retrieve, $exact_match = true, $addQuotes = true)
     {
         $return = null;
         if($exact_match) {

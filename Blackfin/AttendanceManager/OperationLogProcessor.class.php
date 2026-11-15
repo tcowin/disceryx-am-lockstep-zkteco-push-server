@@ -19,6 +19,7 @@ class OperationLogProcessor
     protected $terminalIpAddress;
     protected $schoolId;
     protected $terminal;
+    protected $postContent;
 
     public function __construct($terminalSerialNumber, $terminalIpAddress, $dateTimeString, $postContent)
     {
@@ -87,6 +88,9 @@ FP PIN=2        FID=0   Size=1480       Valid=1 TMP=<template>
             }
             //update last operlog entry timestamp
             $terminal = AttendanceTerminalPeer::retrieveBySerialNumber($this->terminalSerialNumber);
+            if(!$terminal){
+                return;   // containsNewLogEntries() has logged it
+            }
             $this->serverDateString = SchoolPeer::convertToServerDate($terminal['school_id'], $this->dateTimeString);
 
             //store last_operlog_entry in timeclocks reported time so that later reconnection

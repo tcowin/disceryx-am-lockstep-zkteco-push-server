@@ -103,7 +103,7 @@
                         self::updateCommandResult($command['id'], $returnCodeIndex, $elements['CMD']);
                     }
                     if($elements['Return'] != 0){
-                        Logger::logMessage(__METHOD__, "Command[{$command['id']}] sent to terminal received non successful return code of {$elements['Return']} with info of {$elements['CMD']}", LOG_ERR);
+                        Logger::logMessage(__METHOD__, "Command[{$elements['ID']}] sent to terminal received non successful return code of {$elements['Return']} with info of {$elements['CMD']}", LOG_ERR);
                     }
                 }
                 else{
@@ -129,24 +129,31 @@
             $pos = strpos($input, 'Content=');
             $fileContents = substr($input, 8 + $pos);
             $lines = preg_split ('/$\R?^/m', $input);
+            $elements = array();
+            $line = '';
             foreach($lines as $line){
-                $keyValue = explode('=', $line);
+                $keyValue = explode('=', $line, 2);
                 if('Content' == $keyValue[0]){
                     break;
                 }
-                $elements[$keyValue[0]] = $keyValue[1];
+                if(count($keyValue) == 2){
+                    $elements[$keyValue[0]] = $keyValue[1];
+                }
             }
             if(isset($elements['ID']) && isset($elements['Return']) && isset($elements['CMD'])){
                 Logger::logMessage(__METHOD__, "Returned command response[{$line}] broken down to " . implode(", ", $elements), LOG_ERR);
                 $command = self::retrieveByCommandId($elements['ID']);
                 if($command){
                    //$path = '/home/tcowin/webapps/terminals2';
-                    $localFilename = $elements['FILENAME'] . '_' . $terminalSerialNumber;
-                    file_put_contents($localFilename, $fileContents);
+                    // basename: the name comes from the request
+                    $localFilename = basename(isset($elements['FILENAME']) ? $elements['FILENAME'] : 'file') . '_' . basename($terminalSerialNumber);
+                    if(file_put_contents($localFilename, $fileContents) === false){
+                        Logger::logMessage(__METHOD__, "Unable to save {$localFilename} from terminal[{$terminalSerialNumber}]", LOG_ERR);
+                    }
                     self::updateCommandResult($command['id'], $elements['Return'], $elements['CMD']);
                 }
                 if($elements['Return'] != 0){
-                    Logger::logMessage(__METHOD__, "Command[{$command['id']}] sent to terminal received non successful return code of {$elements['Return']} with info of {$elements['CMD']}", LOG_ERR);
+                    Logger::logMessage(__METHOD__, "Command[{$elements['ID']}] sent to terminal received non successful return code of {$elements['Return']} with info of {$elements['CMD']}", LOG_ERR);
                 }
             }
             else{
@@ -164,6 +171,9 @@
         public static function composeCommandResponseForTerminal($terminalSerialNumber)
         {
             $terminal = AttendanceTerminalPeer::retrieveBySerialNumber($terminalSerialNumber);
+            if(!$terminal){
+                return 'OK';   // an unknown clock has nothing queued
+            }
             $commands = self::retrieveReadyForTerminal($terminal['id']);
             if(!empty($commands)){
                 $response = '';

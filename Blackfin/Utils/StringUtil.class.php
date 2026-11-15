@@ -67,7 +67,7 @@ class StringUtil{
             return $var;
         }
         else{
-            return "'" . addslashes($var) . "'";
+            return "'" . addslashes((string) $var) . "'";   // null is '', as before (PHP 8.1 deprecates passing null)
         }
     }
 
@@ -77,7 +77,7 @@ class StringUtil{
         $suffixes_to_capitalize = array('JR.', 'SR.');
 
         $suffix = '';
-        $name_elements = split(' ', $name);
+        $name_elements = explode(' ', $name);   // split() is gone since PHP 7
         $num_elements = count($name_elements);
         if($num_elements > 1){
             if(in_array($name_elements[$num_elements - 1], $suffixes)){

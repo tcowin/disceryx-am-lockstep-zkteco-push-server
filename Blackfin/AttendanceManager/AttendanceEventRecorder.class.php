@@ -52,6 +52,9 @@ use Blackfin\Utils\Timezone;
         protected function isNewRecord()
         {
             $answer = true;
+            // with no school there is no timezone: keep the clock's own time, so the punch can still be stored as
+            // unresolved (event_date is NOT NULL; it used to be lost)
+            $this->serverDateString = $this->dateTimeString;
             $this->terminal = AttendanceTerminalPeer::retrieveBySerialNumber($this->terminalSerialNumber);
             if($this->terminal){
                 if(!empty($this->terminal['school_id'])){
@@ -162,15 +165,21 @@ use Blackfin\Utils\Timezone;
 
         protected function fireClockEvent($rowId)
         {
-            //todo this should be config option
-            $app_dir = '/usr/local/vhosts/beta';
-            if($_SERVER['HTTP_HOST'] == 'terminals.blackfin.biz'){
+            // The app and the PHP that runs its artisan: AM_APP_DIR and PHP_CLI in config.php, for the new host;
+            // without them, what the old host used.
+            $app_dir = defined('AM_APP_DIR') ? AM_APP_DIR : '/usr/local/vhosts/beta';
+            if(!defined('AM_APP_DIR') && isset($_SERVER['HTTP_HOST']) && $_SERVER['HTTP_HOST'] == 'terminals.blackfin.biz'){
                 $app_dir = '/home/rlehr/apps/laravelam';
             }
-            chdir($app_dir);
-            exec("/bin/php74 artisan fire_clock_event " . $rowId, $output);
-            if(!empty($output)){
-                Logger::logMessage(__METHOD__, "Error encountered firing clock event for attendance event[{$rowId}]: " . implode("", $output), LOG_ERR);
+            $php = defined('PHP_CLI') ? PHP_CLI : '/bin/php74';
+            if(!is_file($app_dir . '/artisan')){
+                Logger::logMessage(__METHOD__, "Error encountered firing clock event for attendance event[{$rowId}]: no artisan in {$app_dir} (set AM_APP_DIR in config.php)", LOG_ERR);
+                return;
+            }
+            $output = array();
+            exec('cd ' . escapeshellarg($app_dir) . ' && ' . escapeshellarg($php) . ' artisan fire_clock_event ' . (int) $rowId, $output, $exitCode);
+            if(!empty($output) || $exitCode !== 0){
+                Logger::logMessage(__METHOD__, "Error encountered firing clock event for attendance event[{$rowId}] (exit {$exitCode}): " . implode("", $output), LOG_ERR);
             }
             else{
                 Logger::logMessage(__METHOD__, "Firing clock event for attendance event[{$rowId}]", LOG_DEBUG);
@@ -183,11 +192,13 @@ use Blackfin\Utils\Timezone;
                                  'event_type_id' => $this->attendanceEventTypeId,
                                  'event_date' => $this->serverDateString,
                                  'client_ip_address' => $this->terminalIpAddress,
-                                 'verify_mode' => ZkTechVerifyModePeer::codeToIndex($this->zkTechVerifyMode),
-                                 'updated_at' => "NOW()");
+                                 'verify_mode' => ZkTechVerifyModePeer::codeToIndex($this->zkTechVerifyMode));
             //TODO should we count the same event received within 30(?) seconds as a dup?
+            // the same punch already stored? (updated_at used to be in this lookup as the string 'NOW()': it never
+            // matched on MariaDB, and MySQL 8 refuses the query, which lost every punch)
             $rowId = Database::getTableRowId('attendance_event', $fieldValues, false);
             if(!$rowId){
+                $fieldValues['updated_at'] = "NOW()";
                 $fieldValues['created_at'] = "NOW()";
                 $rowId = Database::insertRecord('attendance_event', $fieldValues);
                 if($rowId){
@@ -217,8 +228,7 @@ use Blackfin\Utils\Timezone;
                                  'school_student_id' => $this->schoolStudentId,
                                  'terminal_serial_number' => $this->terminalSerialNumber,
                                  'terminal_ip_address' => $this->terminalIpAddress,
-                                 'verify_mode' => ZkTechVerifyModePeer::codeToIndex($this->zkTechVerifyMode),
-                                 'updated_at' => "NOW()");
+                                 'verify_mode' => ZkTechVerifyModePeer::codeToIndex($this->zkTechVerifyMode));
             if(!empty($this->attendanceEventTypeId)){
                 $fieldValues['event_type_id'] = $this->attendanceEventTypeId;
             }
@@ -237,9 +247,10 @@ use Blackfin\Utils\Timezone;
 
             $rowId = Database::getTableRowId('unresolved_attendance_event', $fieldValues, false);
             if(!$rowId){
+                $fieldValues['updated_at'] = "NOW()";
                 $fieldValues['created_at'] = "NOW()";
                 $rowId = Database::insertRecord('unresolved_attendance_event', $fieldValues);
-                if($rowId){
+                if($rowId && $this->terminal){
                     //AttendanceTerminalPeer::updateTerminal($this->terminal['id'], array('last_attlog_entry' => $this->serverDateString));
                     //store last_attlog_entry in timeclocks reported time so that later reconnection
                     //has exact time string, and possible UTC tz conversion/restoration doesn't cause problem tbc 10/18/17

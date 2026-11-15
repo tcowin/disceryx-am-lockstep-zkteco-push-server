@@ -13,12 +13,12 @@ use Blackfin\Utils\Timezone;
                              join configuration_option_setting cos on co.id = cos.option_id
                              where co.name = 'Timezone' and cos.school_id = {$schoolId}";
             $result = Database::processQuery($sql);
-
-            $row = $result->fetch_array();
+            $row = $result ? $result->fetch_array() : null;
             if(empty($row['value'])){
-                Logger::logMessage(__METHOD__, 'Missing option value when looking for timezone', LOG_ERR);
+                // Timezone::timezoneToZoneInfoName() then uses Pacific
+                Logger::logMessage(__METHOD__, "Missing option value when looking for timezone of school {$schoolId}", LOG_ERR);
+                return null;
             }
-
             return $row['value'];
         }
 
