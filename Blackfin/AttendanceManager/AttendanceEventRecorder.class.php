@@ -167,13 +167,14 @@ use Blackfin\Utils\Timezone;
 
         protected function fireClockEvent($rowId)
         {
-            // The app and the PHP that runs its artisan: AM_APP_DIR and PHP_CLI in config.php, for the new host;
-            // without them, what the old host used.
-            $app_dir = defined('AM_APP_DIR') ? AM_APP_DIR : '/usr/local/vhosts/beta';
-            if(!defined('AM_APP_DIR') && isset($_SERVER['HTTP_HOST']) && $_SERVER['HTTP_HOST'] == 'terminals.blackfin.biz'){
-                $app_dir = '/home/rlehr/apps/laravelam';
+            // The app and the PHP that runs its artisan, from config.php: AM_APP_DIR is required, PHP_CLI defaults to
+            // /usr/bin/php. (The old host's /usr/local/vhosts/beta and /bin/php74 were hard-coded here.)
+            if(!defined('AM_APP_DIR') || AM_APP_DIR === ''){
+                Logger::logMessage(__METHOD__, "ERROR: clock event NOT fired for attendance event[{$rowId}]: set AM_APP_DIR (the Lockstep app's folder) in config.php", LOG_ERR);
+                return;
             }
-            $php = defined('PHP_CLI') ? PHP_CLI : '/bin/php74';
+            $app_dir = rtrim(AM_APP_DIR, '/');
+            $php = defined('PHP_CLI') && PHP_CLI !== '' ? PHP_CLI : '/usr/bin/php';
             if(!is_file($app_dir . '/artisan')){
                 Logger::logMessage(__METHOD__, "Error encountered firing clock event for attendance event[{$rowId}]: no artisan in {$app_dir} (set AM_APP_DIR in config.php)", LOG_ERR);
                 return;

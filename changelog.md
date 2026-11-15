@@ -1,7 +1,8 @@
 #### 2026-11-15: deleted rows, fingerprints, clocks with a wrong date, PHP 8.5, and only the endpoints served
 Tested on PHP 7.4, 8.3, 8.4 and 8.5, with MariaDB 10.5 and 10.11 and MySQL 8.4 (beta repo, testbed/terminals).
 
-**Deploying:** as below, and serve only the PUSH endpoints and the firmware. With nginx (the PHP-FPM socket as the
+**Deploying:** as below (`AM_APP_DIR` in config.php is now required), and serve only the PUSH endpoints and the
+firmware. With nginx (the PHP-FPM socket as the
 host has it):
 
     root <this folder>;
@@ -26,6 +27,9 @@ the whole folder was served: the logs in lib/ (student IDs, PINs, queries) could
   template records the clock it came from (it was set on the wrong variable); and a finger the app asked a clock to
   enroll (`ENROLL_FP`, confirmed in the last 20 minutes) is linked to that command
   (`terminal_command.student_fingerprint_id`), as the 2021 version of the server did.
+- **The hand-off needs `AM_APP_DIR` in config.php.** The old host's `/usr/local/vhosts/beta` (and, for the host
+  name terminals.blackfin.biz, an old Webfaction path) is no longer assumed; `PHP_CLI` defaults to `/usr/bin/php`
+  instead of `/bin/php74`.
 - **A punch dated more than 8 hours ahead is left out** and logged (`ERROR: ignoring a punch ... check the clock's
   date and time`). Stored, it moved the clock's `last_attlog_entry` ahead, and every real punch from that clock was
   then ignored until that date.
@@ -33,6 +37,8 @@ the whole folder was served: the logs in lib/ (student IDs, PINs, queries) could
 **If something stops working:**
 - *A clock's punches are all missing, with "ERROR: ignoring a punch" in the log:* the clock's date or time is wrong;
   set it (or let it sync: it asks for the time with `type=time`).
+- *"ERROR: clock event NOT fired ... set AM_APP_DIR":* config.php lacks it. The punches are stored; once it is
+  set, `php artisan fire_clock_event <id>` in the app runs the rules for any you need.
 - *The clocks get 404s after the nginx change:* the request isn't `/iclock/cdata`, `/iclock/getrequest` or
   `/iclock/devicecmd`; look in nginx's access log for what they ask for.
 
@@ -44,8 +50,7 @@ clock against 5.6 on PHP 7.4 and MariaDB, and L13 on PHP 8.3 with MariaDB and wi
 1. Copy the code (not `lib/`, not `Blackfin/Database/config.php`, not the clocks' `iclock/*_<serial>` files), and
    `iclock/file/` from the old host: the clocks' firmware, which is not in git.
 2. `Blackfin/Database/config.php` from `config.example.php`: the database, and `AM_APP_DIR` (the Lockstep app's
-   folder) and `PHP_CLI` (its PHP, e.g. `/usr/bin/php`). Without them it looks for `/usr/local/vhosts/beta` and
-   `/bin/php74`, the old host's.
+   folder, required) and `PHP_CLI` (its PHP, default `/usr/bin/php`).
 3. `lib/` writable by the web server: the server's log (`zk_push_api_server.log`) and now PHP's (`php-errors.log`).
    Add both to the app's `AM_ERROR_COLLECTOR_TERMINALS_LOGS`, e.g. `<this folder>/lib/*.log`.
 4. Check with a clock (or the GET in readme.txt): its punches appear in the app, and `lib/php-errors.log` stays empty.
