@@ -1,5 +1,5 @@
 #### 2026-11-14: MariaDB or MySQL 8, PHP 7.4 to 8.x, and nothing lost to one error
-Branch fix/mariadb-mysql-php8. Tested with the Lockstep app in its testbeds (beta repo, testbed/terminals/: a simulated
+Tested with the Lockstep app in its testbeds (beta repo, testbed/terminals/: a simulated
 clock against 5.6 on PHP 7.4 and MariaDB, and L13 on PHP 8.3 with MariaDB and with MySQL 8.4).
 
 **Deploying to the new host:**
@@ -41,7 +41,7 @@ clock against 5.6 on PHP 7.4 and MariaDB, and L13 on PHP 8.3 with MariaDB and wi
 - *Punches are stored but no tardies or absences follow:* look for `Error encountered firing clock event`: "no
   artisan in" means `AM_APP_DIR` is wrong; an exit status means the app's command failed (its `storage/logs`).
 - *A resent punch now isn't stored again:* that is the duplicate check working; it was always meant to.
-- To go back: the branch `production-2026-11-14` is the code as it ran before.
+- To go back: the first commit (e15d062) is the code as it ran before.
 
 #### 9/12/2017
   - When matching time clock events to student/classes, improved matching by ensuring student_class and school_class are not deleted and active, and actually in session
