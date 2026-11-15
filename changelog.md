@@ -3,7 +3,8 @@ Branch fix/mariadb-mysql-php8. Tested with the Lockstep app in its testbeds (bet
 clock against 5.6 on PHP 7.4 and MariaDB, and L13 on PHP 8.3 with MariaDB and with MySQL 8.4).
 
 **Deploying to the new host:**
-1. Copy the code (not `lib/`, not `Blackfin/Database/config.php`, not the clocks' `iclock/*_<serial>` files).
+1. Copy the code (not `lib/`, not `Blackfin/Database/config.php`, not the clocks' `iclock/*_<serial>` files), and
+   `iclock/file/` from the old host: the clocks' firmware, which is not in git.
 2. `Blackfin/Database/config.php` from `config.example.php`: the database, and `AM_APP_DIR` (the Lockstep app's
    folder) and `PHP_CLI` (its PHP, e.g. `/usr/bin/php`). Without them it looks for `/usr/local/vhosts/beta` and
    `/bin/php74`, the old host's.
