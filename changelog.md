@@ -1,3 +1,41 @@
+#### 2026-11-15: deleted rows, fingerprints, clocks with a wrong date, PHP 8.5, and only the endpoints served
+Tested on PHP 7.4, 8.3, 8.4 and 8.5, with MariaDB 10.5 and 10.11 and MySQL 8.4 (beta repo, testbed/terminals).
+
+**Deploying:** as below, and serve only the PUSH endpoints and the firmware. With nginx (the PHP-FPM socket as the
+host has it):
+
+    root <this folder>;
+    location ~ ^/iclock/(cdata|getrequest|devicecmd)$ {
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $document_root/iclock/$1.php;
+        fastcgi_pass unix:/run/php-fpm/www.sock;
+    }
+    location /iclock/file/ { }      # the firmware the clocks download
+    location / { return 404; }
+
+With Apache, the .htaccess now refuses lib/, Blackfin/, vendor/, the clocks' uploaded files and dot files. Before,
+the whole folder was served: the logs in lib/ (student IDs, PINs, queries) could be downloaded.
+
+**Changes:**
+- **Deleted rows are left out:** a removed clock link (`class_terminal`), a deleted schedule or schedule element, a
+  deleted Timezone setting and a deleted enrollment event (e.g. a withdrawal entered by mistake) no longer count when
+  a punch is matched to a class.
+- **Users and fingerprints from the operation log are no longer skipped** when the clock's last punch is newer than
+  the upload: the check compared the upload with `last_attlog_entry` instead of `last_operlog_entry`.
+- **Fingerprints:** a template with a backslash, or a line ending in `\r\n`, is no longer dropped; an updated
+  template records the clock it came from (it was set on the wrong variable); and a finger the app asked a clock to
+  enroll (`ENROLL_FP`, confirmed in the last 20 minutes) is linked to that command
+  (`terminal_command.student_fingerprint_id`), as the 2021 version of the server did.
+- **A punch dated more than 8 hours ahead is left out** and logged (`ERROR: ignoring a punch ... check the clock's
+  date and time`). Stored, it moved the clock's `last_attlog_entry` ahead, and every real punch from that clock was
+  then ignored until that date.
+
+**If something stops working:**
+- *A clock's punches are all missing, with "ERROR: ignoring a punch" in the log:* the clock's date or time is wrong;
+  set it (or let it sync: it asks for the time with `type=time`).
+- *The clocks get 404s after the nginx change:* the request isn't `/iclock/cdata`, `/iclock/getrequest` or
+  `/iclock/devicecmd`; look in nginx's access log for what they ask for.
+
 #### 2026-11-14: MariaDB or MySQL 8, PHP 7.4 to 8.x, and nothing lost to one error
 Tested with the Lockstep app in its testbeds (beta repo, testbed/terminals/: a simulated
 clock against 5.6 on PHP 7.4 and MariaDB, and L13 on PHP 8.3 with MariaDB and with MySQL 8.4).

@@ -55,7 +55,8 @@ use Blackfin\Database\Database;
             $sql = "select se.* from schedule_element se
                              join class_schedule cs on se.class_schedule_id = cs.id
                              join school_class sc on cs.id = sc.schedule_id
-                             where sc.id = $classId";
+                             where se.deleted_at IS NULL AND cs.deleted_at IS NULL AND sc.deleted_at IS NULL AND
+                                   sc.id = " . (int) $classId;
 
             return Database::retrieveRecordsFromQuery($sql);
         }

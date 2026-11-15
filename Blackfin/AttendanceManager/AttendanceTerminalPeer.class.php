@@ -45,7 +45,7 @@ class AttendanceTerminalPeer {
         $terminals = array();
         $sql = "select at.* from attendance_terminal at
                             join class_terminal ct on at.id = ct.terminal_id
-                            where ct.class_id = {$classId}";
+                            where ct.class_id = " . (int) $classId . " AND at.deleted_at IS NULL AND ct.deleted_at IS NULL";
         $result = Database::processQuery($sql);
         if($result){
             while($row = $result->fetch_array()){
@@ -218,7 +218,9 @@ OPERLOGStamp={$lastOperlogEntryTimestamp}";
                         //store last_attlog_entry in timeclocks reported time so that later reconnection
                         //has exact time string, and possible UTC tz conversion/restoration doesn't cause problem tbc 10/18/17
                         $recordTime = new \DateTime($dateTimeString);
-                        $lastRecordTime = new \DateTime($terminal['last_attlog_entry']);
+                        // the last operation log entry (this compared with the last punch, last_attlog_entry, so a
+                        // clock's users and fingerprints were skipped whenever its last punch was newer)
+                        $lastRecordTime = new \DateTime($terminal['last_operlog_entry']);
                         if($lastRecordTime >= $recordTime){
                             $answer = false;
                         }

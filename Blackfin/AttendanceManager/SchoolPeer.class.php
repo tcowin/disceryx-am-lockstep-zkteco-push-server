@@ -11,7 +11,8 @@ use Blackfin\Utils\Timezone;
         {
             $sql = "select cos.value from configuration_option co
                              join configuration_option_setting cos on co.id = cos.option_id
-                             where co.name = 'Timezone' and cos.school_id = {$schoolId}";
+                             where co.name = 'Timezone' and cos.school_id = " . (int) $schoolId . " and
+                                   co.deleted_at IS NULL and cos.deleted_at IS NULL";
             $result = Database::processQuery($sql);
             $row = $result ? $result->fetch_array() : null;
             if(empty($row['value'])){

@@ -26,6 +26,8 @@ use Blackfin\Utils\Timezone;
         protected $attendanceEventTypeId = 1;
         protected $terminal;
 
+        // a punch dated further ahead than this means the clock's date or time is wrong (see recordEvent)
+        const MAX_FUTURE_SECONDS = 28800;   // 8 hours
         public function __construct($schoolStudentId, $dateTimeString, $zkTechEventType, $zkTechVerifyMode, $terminalSerialNumber, $terminalIpAddress)
         {
             //TODO possibly include and record method of provided authentication (i.e., fingerprint, badge or passcode) ? phase 2 ?
@@ -263,10 +265,28 @@ use Blackfin\Utils\Timezone;
             return $rowId;
         }
 
+        /**
+         * How far ahead of now the punch is dated, in seconds (the clock's time in the school's timezone, or as UTC
+         * when the clock has no school, which never makes a US local time look ahead); null if it can't be read.
+         */
+        protected function secondsInFuture()
+        {
+            $timestamp = strtotime($this->serverDateString . ' UTC');
+            return $timestamp === false ? null : $timestamp - time();
+        }
+
         public function recordEvent()
         {
             $this->convertZkTechToAppEventType();
-            if($this->isNewRecord()){
+            $isNew = $this->isNewRecord();
+            // Recording a punch dated far ahead would move the clock's last_attlog_entry ahead, and every real punch
+            // from that clock would then be ignored until that date: log it and leave it out.
+            $ahead = $this->secondsInFuture();
+            if($ahead !== null && $ahead > self::MAX_FUTURE_SECONDS){
+                Logger::logMessage(__METHOD__, "ERROR: ignoring a punch from terminal {$this->terminalSerialNumber} for student ID {$this->schoolStudentId} dated {$this->dateTimeString}, more than 8 hours ahead; check the clock's date and time", LOG_ERR);
+                return;
+            }
+            if($isNew){
                 if($this->terminal && $this->schoolId && $this->schoolStudentId){
                     $this->determineStudentAndClass();
                 }

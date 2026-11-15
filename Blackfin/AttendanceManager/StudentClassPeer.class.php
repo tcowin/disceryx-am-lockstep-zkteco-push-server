@@ -38,7 +38,7 @@ use Blackfin\Database\Database;
             $studentId = (int) $studentId;
             $sql = "select sc.* from student_class sc 
                                 join school_class c on sc.class_id = c.id
-                                join enrollment_event ee on ee.id = (SELECT id FROM enrollment_event where student_class_id = sc.id order by created_at desc limit 1) 
+                                join enrollment_event ee on ee.id = (SELECT id FROM enrollment_event where student_class_id = sc.id and deleted_at is null order by created_at desc limit 1) 
                                                       where sc.student_id = $studentId AND 
                                                             sc.deleted_at IS NULL AND
                                                             c.deleted_at IS NULL AND 

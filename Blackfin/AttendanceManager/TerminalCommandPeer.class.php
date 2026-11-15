@@ -30,6 +30,22 @@
                                                                        'deleted_at' => NULL));
         }
 
+        /**
+         * The app's ENROLL_FP command for this student on this clock that the clock confirmed in the last 20 minutes
+         * (Return 0), most recent first: the fingerprint the clock then uploads is the one it enrolled.
+         */
+        public static function retrieveRecentEnrollFingerprintCommand($terminalId, $studentId)
+        {
+            $since = date('Y-m-d H:i:s', time() - 20 * 60);
+            $success = ZkTechPushErrorCodePeer::codeToIndex(0);
+            $records = Database::retrieveRecordsFromQuery(
+                "select * from terminal_command where terminal_id = " . (int) $terminalId . " and student_id = " . (int) $studentId
+                . " and command like 'ENROLL_FP %' and deleted_at is null and confirmed_at >= '{$since}'"
+                . ($success ? " and result_code = " . (int) $success : '')
+                . " order by confirmed_at desc, id desc limit 1");
+            return $records ? $records[0] : null;
+        }
+
         public static function retrieveByCommandId($commandId)
         {
             return Database::retrieveRecord('terminal_command', array('id' => $commandId));

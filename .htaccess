@@ -1,3 +1,9 @@
 RewriteEngine On
+# Only the PUSH endpoints (and the firmware in iclock/file/) are for the clocks: never the logs, the settings, the
+# code, or the files the clocks uploaded
+RewriteRule ^(lib|Blackfin|vendor)(/|$) - [F,L]
+RewriteRule ^iclock/[^/]*_[0-9]+$ - [F,L]
+RewriteRule (^|/)\. - [F,L]
+RewriteRule \.(md|txt|json|ini|phar|log|gz)$ - [F,L]
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule ^([^\.]+)$ $1.php [NC,L]

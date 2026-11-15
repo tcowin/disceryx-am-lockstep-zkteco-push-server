@@ -43,6 +43,7 @@ FP PIN=2        FID=0   Size=1480       Valid=1 TMP=<template>
         */
         if(AttendanceTerminalPeer::containsNewLogEntries($this->terminalSerialNumber, $this->dateTimeString)){
             foreach($this->postContent as $line){
+                $line = rtrim($line, "\r\n");   // file() keeps the line ending; "$" doesn't match before a "\r"
                 $logEntryElements = preg_split('/\s+/', $line);
                 switch($logEntryElements[0]){
                     default:
@@ -65,7 +66,7 @@ FP PIN=2        FID=0   Size=1480       Valid=1 TMP=<template>
                         break;
                     case 'FP':
                         //TODO if user is created at terminal, should we create a new student in school?
-                        $matched = preg_match("#^FP\s+PIN=(\d{1,15})\s+FID=([0-9]+)\s+Size=([0-9]+)\s+Valid=1\s+TMP=([0-9A-Za-z/\+]+={0,2})$#", $line, $matches);
+                        $matched = preg_match("#^FP\s+PIN=(\d{1,15})\s+FID=([0-9]+)\s+Size=([0-9]+)\s+Valid=1\s+TMP=([0-9A-Za-z/\\\+]+={0,2})$#", $line, $matches);   // a backslash too (as in 2021: templates with one were dropped)
                                          //TODO the need for split on spaces may just be an artifact of testing
                         //$keyValuePairs = StringUtil::apiResponseToArray(substr($line, 3), 'tabs_or_spaces');
                         //$keyValuePairs = StringUtil::apiResponseToArray(substr($line, 3));

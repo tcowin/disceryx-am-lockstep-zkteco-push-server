@@ -30,11 +30,20 @@
                                 'size' => $size,
                                 'content' => $base64FileContent,
                                 'created_at' => $dateNow);
+                $fields['updated_at'] = $dateNow;
                 $terminal = AttendanceTerminalPeer::retrieveBySerialNumber($terminalSerialNumber);
                 if($terminal){
                     $fields['originating_terminal_id'] = $terminal['id'];
                 }
-                return Database::insertRecord('student_fingerprint', $fields);
+                $insertId = Database::insertRecord('student_fingerprint', $fields);
+                // a finger enrolled at the clock because the app asked (ENROLL_FP): tell the app which template came of it
+                if($insertId && $terminal){
+                    $command = TerminalCommandPeer::retrieveRecentEnrollFingerprintCommand($terminal['id'], $studentId);
+                    if($command && empty($command['student_fingerprint_id'])){
+                        Database::updateRecord('terminal_command', $command['id'], array('student_fingerprint_id' => $insertId));
+                    }
+                }
+                return $insertId;
             }
             else{
                 $fieldsToUpdate = array();
@@ -47,7 +56,7 @@
                 if(!empty($fieldsToUpdate)){
                     $terminal = AttendanceTerminalPeer::retrieveBySerialNumber($terminalSerialNumber);
                     if($terminal){
-                        $fields['originating_terminal_id'] = $terminal['id'];
+                        $fieldsToUpdate['originating_terminal_id'] = $terminal['id'];   // was set on $fields, so never stored
                     }
                     Database::updateRecord('student_fingerprint', $fp['id'], $fieldsToUpdate);
                 }
