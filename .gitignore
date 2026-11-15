@@ -1,0 +1,14 @@
+test.txt
+test.php
+phpinfo.php
+zk_push_api_server.log
+# Never in git: database settings, logs, what the clocks upload, editor backups, tools
+/Blackfin/Database/config.php
+/lib/
+/iclock/ssruser.dat_*
+/iclock/*_[0-9]*
+*~
+php-errors.log
+composer.phar
+# ZKTeco firmware for the clocks (vendor binary): copy it to the server, not into git
+/iclock/file/

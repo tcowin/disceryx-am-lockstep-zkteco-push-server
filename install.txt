@@ -1,0 +1,8 @@
+In AttendanceEventRecorder::fireClockEvent, make sure the path to the corresponding AttendanceManager Laravel App is correct. 
+
+            chdir("/home/tcowin/webapps/laravelam");
+
+also may need to change the path to php there.
+Also will need to populate timezoneinfo db in mysql:
+  mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root mysql (laravelam / beta)
+make sure permissions to storage/oauth keys allows web server to read them (laravelam / beta)
