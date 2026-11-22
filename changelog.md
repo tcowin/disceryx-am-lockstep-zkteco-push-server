@@ -1,3 +1,11 @@
+#### 2026-11-22: a deploy script
+`scripts/deploy.sh <prod-host> <prod-path>` deploys this checkout (`--dry-run` first; `--help`). It copies to a
+staging folder next to production's folder and checks every file's syntax with production's PHP (7.4 or later).
+Only then does it copy them in. Before that it checks production's config.php for AM_APP_DIR (and that the app's
+artisan and PHP_CLI are there), lib/ and iclock/file/. It never copies or removes config.php, lib/, the clocks'
+uploads or the firmware. Files no longer in git stay unless you add `--delete`. Every step says what it is doing.
+The nginx settings and the firmware are still done by hand (below).
+
 #### 2026-11-15: deleted rows, fingerprints, clocks with a wrong date, PHP 8.5, and only the endpoints served
 Tested on PHP 7.4, 8.3, 8.4 and 8.5, with MariaDB 10.5 and 10.11 and MySQL 8.4 (beta repo, testbed/terminals).
 
